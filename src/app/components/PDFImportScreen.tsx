@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import turquesaIcon from 'figma:asset/8231cf14c7fa1738c3b24474f7b560634a962f1c.png';
+import turquesaIcon from '../../assets/8231cf14c7fa1738c3b24474f7b560634a962f1c.png';
 
 interface PDFImportScreenProps {
   onImport: (file: File) => Promise<void>;

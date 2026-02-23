@@ -142,8 +142,8 @@ export default function App() {
   // ─── Prevenir zoom e double-tap ─────────────────────────────────────────────
   useEffect(() => {
     const prevent = (e: Event) => e.preventDefault();
-    document.addEventListener('gesturestart', prevent);
-    document.addEventListener('gesturechange', prevent);
+    document.addEventListener('gesturestart' as any, prevent);
+    document.addEventListener('gesturechange' as any, prevent);
 
     let lastTap = 0;
     const preventDoubleTap = (e: TouchEvent) => {
@@ -154,8 +154,8 @@ export default function App() {
     document.addEventListener('touchend', preventDoubleTap);
 
     return () => {
-      document.removeEventListener('gesturestart', prevent);
-      document.removeEventListener('gesturechange', prevent);
+      document.removeEventListener('gesturestart' as any, prevent);
+      document.removeEventListener('gesturechange' as any, prevent);
       document.removeEventListener('touchend', preventDoubleTap);
     };
   }, []);
