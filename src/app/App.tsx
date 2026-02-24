@@ -27,6 +27,7 @@ export default function App() {
   const [installPromptEvent, setInstallPromptEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
   const [showIOSInstallHint, setShowIOSInstallHint] = useState(false);
+  const [isIOSDevice, setIsIOSDevice] = useState(false);
 
   // ─── Verificar se há PDF salvo ao iniciar ───────────────────────────────────
   useEffect(() => {
@@ -77,6 +78,7 @@ export default function App() {
 
   useEffect(() => {
     const isIOS = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
+    setIsIOSDevice(isIOS);
     const isStandalone =
       (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
       (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
@@ -85,6 +87,56 @@ export default function App() {
       setShowIOSInstallHint(true);
     }
   }, []);
+
+  const handleInstallClick = useCallback(async () => {
+    if (isInstalled) return;
+
+    if (installPromptEvent) {
+      try {
+        await installPromptEvent.prompt();
+        const choice = await installPromptEvent.userChoice;
+        console.log('Resultado instalação PWA:', choice.outcome);
+      } catch (err) {
+        console.log('Falha ao exibir prompt de instalação:', err);
+      } finally {
+        setInstallPromptEvent(null);
+      }
+      return;
+    }
+
+    if (isIOSDevice) {
+      setShowIOSInstallHint(true);
+    }
+  }, [installPromptEvent, isIOSDevice, isInstalled]);
+
+  const shouldShowInstallCTA = !isInstalled && (!!installPromptEvent || isIOSDevice);
+
+  const renderIOSInstallHint = () => (
+    <AnimatePresence>
+      {showIOSInstallHint && isIOSDevice && !isInstalled && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 10 }}
+          className="fixed bottom-6 left-6 right-6 bg-black/60 backdrop-blur border border-neutral-700 text-white/90 rounded-2xl px-4 py-3 text-sm z-40"
+          role="alert"
+        >
+          <div className="flex items-start justify-between gap-4">
+            <p className="text-neutral-200">
+              Para instalar no iPhone/iPad: Compartilhar → Adicionar à Tela de Início
+            </p>
+            <button
+              onClick={() => setShowIOSInstallHint(false)}
+              className="text-neutral-300 hover:text-white transition-colors"
+              aria-label="Fechar"
+            >
+              ✕
+            </button>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
 
   // ─── Handler de importação do PDF ──────────────────────────────────────────
   const handleImport = useCallback(async (file: File) => {
@@ -192,7 +244,26 @@ export default function App() {
 
   // 2. Tela de importação
   if (appState === 'import') {
-    return <PDFImportScreen onImport={handleImport} />;
+    return (
+      <div className="fixed inset-0">
+        <PDFImportScreen onImport={handleImport} />
+
+        {shouldShowInstallCTA && (
+          <motion.button
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
+            onClick={handleInstallClick}
+            className="fixed top-4 right-4 px-4 py-2 bg-orange-500 hover:bg-orange-400 text-white rounded-full text-sm shadow-lg z-40"
+          >
+            ⬇️ Instalar App
+          </motion.button>
+        )}
+
+        {renderIOSInstallHint()}
+      </div>
+    );
   }
 
   // 3. Carregando páginas do PDF
@@ -258,30 +329,20 @@ export default function App() {
     >
       <FlipBook pages={pages} />
 
-      <AnimatePresence>
-        {showIOSInstallHint && !isInstalled && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            className="fixed bottom-6 left-6 right-6 bg-black/60 backdrop-blur border border-neutral-700 text-white/90 rounded-2xl px-4 py-3 text-sm z-40"
-            role="alert"
-          >
-            <div className="flex items-start justify-between gap-4">
-              <p className="text-neutral-200">
-                Para instalar, toque em compartilhar → Adicionar à Tela de Início
-              </p>
-              <button
-                onClick={() => setShowIOSInstallHint(false)}
-                className="text-neutral-300 hover:text-white transition-colors"
-                aria-label="Fechar"
-              >
-                ✕
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {shouldShowInstallCTA && !showMenu && (
+        <motion.button
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.2 }}
+          onClick={handleInstallClick}
+          className="fixed top-4 left-4 px-4 py-2 bg-orange-500 hover:bg-orange-400 text-white rounded-full text-sm shadow-lg z-40"
+        >
+          ⬇️ Instalar App
+        </motion.button>
+      )}
+
+      {renderIOSInstallHint()}
 
       {/* Menu discreto (longo toque no canto superior direito) */}
       <button
@@ -340,19 +401,11 @@ export default function App() {
                 </button>
               )}
 
-              {!!installPromptEvent && !isInstalled && (
+              {!isInstalled && (!!installPromptEvent || isIOSDevice) && (
                 <button
                   onClick={async () => {
-                    try {
-                      await installPromptEvent.prompt();
-                      const choice = await installPromptEvent.userChoice;
-                      console.log('Resultado instalação PWA:', choice.outcome);
-                    } catch (err) {
-                      console.log('Falha ao exibir prompt de instalação:', err);
-                    } finally {
-                      setInstallPromptEvent(null);
-                      setShowMenu(false);
-                    }
+                    await handleInstallClick();
+                    setShowMenu(false);
                   }}
                   className="w-full flex items-center gap-3 px-4 py-3 text-white hover:bg-neutral-800 transition-colors text-sm"
                 >
