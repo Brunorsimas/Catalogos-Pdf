@@ -1,11 +1,14 @@
 const CACHE_NAME = 'ipdfca-static-v1';
 
+const SCOPE_PATHNAME = new URL(self.registration.scope).pathname.replace(/\/$/, '');
+const withScope = (path) => `${SCOPE_PATHNAME}${path.startsWith('/') ? '' : '/'}${path}`;
+
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
+  withScope('/'),
+  withScope('/index.html'),
+  withScope('/manifest.json'),
+  withScope('/icons/icon-192.png'),
+  withScope('/icons/icon-512.png'),
 ];
 
 async function precacheStaticAssets(cache) {
@@ -58,13 +61,14 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       (async () => {
         const cache = await caches.open(CACHE_NAME);
-        const cachedIndex = await cache.match('/index.html');
+        const indexUrl = withScope('/index.html');
+        const cachedIndex = await cache.match(indexUrl);
         if (cachedIndex) return cachedIndex;
 
         try {
-          const response = await fetch('/index.html', { cache: 'no-store' });
+          const response = await fetch(indexUrl, { cache: 'no-store' });
           if (response && response.status === 200) {
-            cache.put('/index.html', response.clone());
+            cache.put(indexUrl, response.clone());
           }
           return response;
         } catch (err) {
@@ -77,11 +81,15 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Cache-first for static assets
+  const scopePrefix = `${SCOPE_PATHNAME}/`;
+  const isWithinScope = url.pathname === SCOPE_PATHNAME || url.pathname.startsWith(scopePrefix);
+  if (!isWithinScope) return;
+
   const isStaticAsset =
-    url.pathname === '/' ||
-    url.pathname === '/index.html' ||
-    url.pathname.startsWith('/assets/') ||
-    url.pathname.startsWith('/icons/') ||
+    url.pathname === withScope('/') ||
+    url.pathname === withScope('/index.html') ||
+    url.pathname.startsWith(withScope('/assets/')) ||
+    url.pathname.startsWith(withScope('/icons/')) ||
     url.pathname.endsWith('.css') ||
     url.pathname.endsWith('.js') ||
     url.pathname.endsWith('.mjs') ||
