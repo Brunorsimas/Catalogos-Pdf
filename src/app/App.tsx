@@ -27,6 +27,7 @@ export default function App() {
   const [installPromptEvent, setInstallPromptEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
   const [showIOSInstallHint, setShowIOSInstallHint] = useState(false);
+  const [showBrowserInstallHint, setShowBrowserInstallHint] = useState(false);
   const [isIOSDevice, setIsIOSDevice] = useState(false);
 
   // ─── Verificar se há PDF salvo ao iniciar ───────────────────────────────────
@@ -60,6 +61,7 @@ export default function App() {
       setIsInstalled(true);
       setInstallPromptEvent(null);
       setShowIOSInstallHint(false);
+      setShowBrowserInstallHint(false);
     };
 
     const handleBeforeInstallPrompt = (e: Event) => {
@@ -106,10 +108,13 @@ export default function App() {
 
     if (isIOSDevice) {
       setShowIOSInstallHint(true);
+      setShowBrowserInstallHint(false);
+      return;
     }
+    setShowBrowserInstallHint(true);
   }, [installPromptEvent, isIOSDevice, isInstalled]);
 
-  const shouldShowInstallCTA = !isInstalled && (!!installPromptEvent || isIOSDevice);
+  const shouldShowInstallCTA = !isInstalled;
 
   const renderIOSInstallHint = () => (
     <AnimatePresence>
@@ -127,6 +132,33 @@ export default function App() {
             </p>
             <button
               onClick={() => setShowIOSInstallHint(false)}
+              className="text-neutral-300 hover:text-white transition-colors"
+              aria-label="Fechar"
+            >
+              ✕
+            </button>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+
+  const renderBrowserInstallHint = () => (
+    <AnimatePresence>
+      {showBrowserInstallHint && !isIOSDevice && !isInstalled && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 10 }}
+          className="fixed bottom-6 left-6 right-6 bg-black/60 backdrop-blur border border-neutral-700 text-white/90 rounded-2xl px-4 py-3 text-sm z-40"
+          role="alert"
+        >
+          <div className="flex items-start justify-between gap-4">
+            <p className="text-neutral-200">
+              No navegador, abra o menu e toque em "Instalar app" ou "Adicionar à tela inicial".
+            </p>
+            <button
+              onClick={() => setShowBrowserInstallHint(false)}
               className="text-neutral-300 hover:text-white transition-colors"
               aria-label="Fechar"
             >
@@ -266,13 +298,15 @@ export default function App() {
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2 }}
             onClick={handleInstallClick}
-            className="fixed top-4 right-4 px-4 py-2 bg-teal-500 hover:bg-teal-400 text-white rounded-full text-sm shadow-lg z-40"
+            className="fixed right-4 px-4 py-2 bg-teal-500 hover:bg-teal-400 text-white rounded-full text-sm shadow-lg z-40"
+            style={{ top: 'calc(env(safe-area-inset-top) + 12px)' }}
           >
             ⬇️ Instalar App
           </motion.button>
         )}
 
         {renderIOSInstallHint()}
+        {renderBrowserInstallHint()}
       </div>
     );
   }
@@ -343,7 +377,8 @@ export default function App() {
       {!showMenu && (
         <button
           onClick={handleCloseCatalog}
-          className="fixed top-4 left-4 px-4 py-2 bg-black/50 backdrop-blur border border-neutral-700 text-white/80 hover:text-white rounded-full text-sm z-40"
+          className="fixed left-4 px-4 py-2 bg-black/60 backdrop-blur border border-neutral-600 text-white hover:text-white rounded-full text-sm z-50"
+          style={{ top: 'calc(env(safe-area-inset-top) + 12px)' }}
           aria-label="Fechar catálogo"
         >
           ✕ Fechar
@@ -357,13 +392,15 @@ export default function App() {
           exit={{ opacity: 0, y: -8 }}
           transition={{ duration: 0.2 }}
           onClick={handleInstallClick}
-          className="fixed top-4 right-4 px-4 py-2 bg-teal-500 hover:bg-teal-400 text-white rounded-full text-sm shadow-lg z-40"
+          className="fixed right-4 px-4 py-2 bg-teal-500 hover:bg-teal-400 text-white rounded-full text-sm shadow-lg z-50"
+          style={{ top: 'calc(env(safe-area-inset-top) + 12px)' }}
         >
           ⬇️ Instalar App
         </motion.button>
       )}
 
       {renderIOSInstallHint()}
+      {renderBrowserInstallHint()}
 
       {/* Menu discreto (longo toque no canto superior direito) */}
       <button
@@ -422,7 +459,7 @@ export default function App() {
                 </button>
               )}
 
-              {!isInstalled && (!!installPromptEvent || isIOSDevice) && (
+              {!isInstalled && (
                 <button
                   onClick={async () => {
                     await handleInstallClick();
@@ -434,6 +471,14 @@ export default function App() {
                   Instalar Aplicativo
                 </button>
               )}
+
+              <button
+                onClick={handleCloseCatalog}
+                className="w-full flex items-center gap-3 px-4 py-3 text-neutral-300 hover:bg-neutral-800 transition-colors text-sm border-t border-neutral-800"
+              >
+                <span>↩</span>
+                Fechar Catálogo
+              </button>
 
               <button
                 onClick={() => setShowMenu(false)}
