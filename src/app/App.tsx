@@ -156,6 +156,17 @@ export default function App() {
     setAppState('import');
   }, [pdfUrl]);
 
+  const handleCloseCatalog = useCallback(async () => {
+    try {
+      if (document.fullscreenElement && document.exitFullscreen) {
+        await document.exitFullscreen();
+      }
+    } catch {}
+
+    setShowMenu(false);
+    setAppState('import');
+  }, []);
+
   // ─── Fullscreen imersivo ────────────────────────────────────────────────────
   useEffect(() => {
     if (appState !== 'catalog') return;
@@ -236,7 +247,7 @@ export default function App() {
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-          className="w-10 h-10 border-2 border-neutral-700 border-t-orange-500 rounded-full"
+          className="w-10 h-10 border-2 border-neutral-700 border-t-teal-500 rounded-full"
         />
       </div>
     );
@@ -255,7 +266,7 @@ export default function App() {
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2 }}
             onClick={handleInstallClick}
-            className="fixed top-4 right-4 px-4 py-2 bg-orange-500 hover:bg-orange-400 text-white rounded-full text-sm shadow-lg z-40"
+            className="fixed top-4 right-4 px-4 py-2 bg-teal-500 hover:bg-teal-400 text-white rounded-full text-sm shadow-lg z-40"
           >
             ⬇️ Instalar App
           </motion.button>
@@ -273,7 +284,7 @@ export default function App() {
         <div className="flex flex-col items-center gap-6">
           <div className="relative w-20 h-20">
             <div className="absolute inset-0 border-4 border-neutral-800 rounded-full" />
-            <div className="absolute inset-0 border-4 border-t-orange-500 rounded-full animate-spin" />
+            <div className="absolute inset-0 border-4 border-t-teal-500 rounded-full animate-spin" />
             <div className="absolute inset-0 flex items-center justify-center text-2xl">📖</div>
           </div>
           <div className="text-center">
@@ -284,7 +295,7 @@ export default function App() {
           </div>
           <div className="w-48 h-1 bg-neutral-800 rounded-full overflow-hidden">
             <motion.div
-              className="h-full bg-orange-500 rounded-full"
+              className="h-full bg-teal-500 rounded-full"
               animate={{ x: ['-100%', '100%'] }}
               transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
             />
@@ -305,7 +316,7 @@ export default function App() {
           <div className="flex flex-col gap-3">
             <button
               onClick={handleChangePDF}
-              className="px-6 py-3 bg-orange-600 hover:bg-orange-500 rounded-xl transition-colors"
+              className="px-6 py-3 bg-teal-600 hover:bg-teal-500 rounded-xl transition-colors"
             >
               Importar Outro PDF
             </button>
@@ -329,6 +340,16 @@ export default function App() {
     >
       <FlipBook pages={pages} />
 
+      {!showMenu && (
+        <button
+          onClick={handleCloseCatalog}
+          className="fixed top-4 left-4 px-4 py-2 bg-black/50 backdrop-blur border border-neutral-700 text-white/80 hover:text-white rounded-full text-sm z-40"
+          aria-label="Fechar catálogo"
+        >
+          ✕ Fechar
+        </button>
+      )}
+
       {shouldShowInstallCTA && !showMenu && (
         <motion.button
           initial={{ opacity: 0, y: -8 }}
@@ -336,7 +357,7 @@ export default function App() {
           exit={{ opacity: 0, y: -8 }}
           transition={{ duration: 0.2 }}
           onClick={handleInstallClick}
-          className="fixed top-4 left-4 px-4 py-2 bg-orange-500 hover:bg-orange-400 text-white rounded-full text-sm shadow-lg z-40"
+          className="fixed top-4 right-4 px-4 py-2 bg-teal-500 hover:bg-teal-400 text-white rounded-full text-sm shadow-lg z-40"
         >
           ⬇️ Instalar App
         </motion.button>
@@ -380,7 +401,7 @@ export default function App() {
 
               <button
                 onClick={handleChangePDF}
-                className="w-full flex items-center gap-3 px-4 py-3 text-orange-400 hover:bg-neutral-800 transition-colors text-sm"
+                className="w-full flex items-center gap-3 px-4 py-3 text-teal-400 hover:bg-neutral-800 transition-colors text-sm"
               >
                 <span>🔄</span>
                 Trocar Catálogo

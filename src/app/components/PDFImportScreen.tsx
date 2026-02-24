@@ -75,7 +75,7 @@ export function PDFImportScreen({ onImport }: PDFImportScreenProps) {
             style={{
               width: `${200 + i * 80}px`,
               height: `${200 + i * 80}px`,
-              background: 'radial-gradient(circle, #f97316, transparent)',
+              background: 'radial-gradient(circle, #14b8a6, transparent)',
               left: `${10 + i * 15}%`,
               top: `${5 + i * 12}%`,
             }}
@@ -106,13 +106,13 @@ export function PDFImportScreen({ onImport }: PDFImportScreenProps) {
             {/* Animação de livro */}
             <div className="relative w-24 h-24">
               <motion.div
-                className="absolute inset-0 rounded-lg bg-orange-600"
+                className="absolute inset-0 rounded-lg bg-teal-600"
                 style={{ transformOrigin: 'left center' }}
                 animate={{ rotateY: [0, -40, 0] }}
                 transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
               />
               <motion.div
-                className="absolute inset-0 rounded-lg bg-orange-400"
+                className="absolute inset-0 rounded-lg bg-teal-400"
                 style={{ transformOrigin: 'left center' }}
                 animate={{ rotateY: [0, -25, 0] }}
                 transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut', delay: 0.15 }}
@@ -130,7 +130,7 @@ export function PDFImportScreen({ onImport }: PDFImportScreenProps) {
             {/* Barra de progresso animada */}
             <div className="w-64 h-1.5 bg-neutral-800 rounded-full overflow-hidden">
               <motion.div
-                className="h-full bg-orange-500 rounded-full"
+                className="h-full bg-teal-500 rounded-full"
                 animate={{ x: ['-100%', '100%'] }}
                 transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
               />
@@ -195,8 +195,8 @@ export function PDFImportScreen({ onImport }: PDFImportScreenProps) {
                   relative w-full rounded-2xl border-2 border-dashed p-10 cursor-pointer
                   flex flex-col items-center gap-4 transition-all duration-200
                   ${isDragging
-                    ? 'border-orange-400 bg-orange-500/10 scale-[1.02]'
-                    : 'border-neutral-700 bg-neutral-900 hover:border-orange-500/60 hover:bg-neutral-800/50'
+                    ? 'border-teal-400 bg-teal-500/10 scale-[1.02]'
+                    : 'border-neutral-700 bg-neutral-900 hover:border-teal-500/60 hover:bg-neutral-800/50'
                   }
                 `}
               >
