@@ -25,7 +25,6 @@ function openDB(): Promise<IDBDatabase> {
 }
 
 export async function savePDFToStorage(file: File): Promise<string> {
-  const arrayBuffer = await file.arrayBuffer();
   const db = await openDB();
 
   return new Promise((resolve, reject) => {
@@ -33,7 +32,7 @@ export async function savePDFToStorage(file: File): Promise<string> {
     const store = tx.objectStore(STORE_NAME);
 
     const data = {
-      buffer: arrayBuffer,
+      blob: file,
       name: file.name,
       size: file.size,
       savedAt: new Date().toISOString(),
@@ -41,8 +40,7 @@ export async function savePDFToStorage(file: File): Promise<string> {
 
     const req = store.put(data, PDF_KEY);
     req.onsuccess = () => {
-      const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(file);
       resolve(url);
     };
     req.onerror = () => reject(req.error);
@@ -64,7 +62,10 @@ export async function loadPDFFromStorage(): Promise<{ url: string; name: string;
           resolve(null);
           return;
         }
-        const blob = new Blob([data.buffer], { type: 'application/pdf' });
+        const blob =
+          data.blob instanceof Blob
+            ? data.blob
+            : new Blob([data.buffer], { type: 'application/pdf' });
         const url = URL.createObjectURL(blob);
         resolve({ url, name: data.name, savedAt: data.savedAt });
       };

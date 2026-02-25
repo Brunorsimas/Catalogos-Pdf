@@ -307,19 +307,19 @@ export default function App() {
   }, []);
 
   // ─── Hook de páginas PDF (só ativa quando há URL) ───────────────────────────
-  const { pages, loading, error } = usePDFPages(
+  const { totalPages, loading, error, renderPage } = usePDFPages(
     appState === 'loading' || appState === 'catalog' ? pdfUrl : ''
   );
 
   // Transição loading → catalog / error
   useEffect(() => {
     if (appState !== 'loading') return;
-    if (!loading && pages.length > 0) setAppState('catalog');
+    if (!loading && totalPages > 0) setAppState('catalog');
     if (!loading && error) {
       setErrorMsg(error);
       setAppState('error');
     }
-  }, [loading, pages, error, appState]);
+  }, [loading, totalPages, error, appState]);
 
   // ─── Renderização por estado ────────────────────────────────────────────────
 
@@ -425,7 +425,7 @@ export default function App() {
       className="fixed inset-0 overflow-hidden"
       style={{ height: '100dvh', width: '100dvw' }}
     >
-      <FlipBook pages={pages} />
+      <FlipBook totalPages={totalPages} renderPage={renderPage} />
 
       {!showMenu && (
         <button
@@ -488,7 +488,7 @@ export default function App() {
                 <p className="text-white text-sm truncate max-w-[180px]">
                   📄 {savedPDFName || 'Catálogo'}
                 </p>
-                <p className="text-neutral-500 text-xs">{pages.length} páginas</p>
+                <p className="text-neutral-500 text-xs">{totalPages} páginas</p>
               </div>
 
               <button

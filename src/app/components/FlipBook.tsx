@@ -1,18 +1,132 @@
-import { useState, useRef } from 'react';
+﻿import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence, PanInfo } from 'motion/react';
 import { PDFPageImage } from '../hooks/usePDFPages';
 
 interface FlipBookProps {
-  pages: PDFPageImage[];
+  totalPages: number;
+  renderPage: (pageNumber: number) => Promise<PDFPageImage>;
 }
 
-export function FlipBook({ pages }: FlipBookProps) {
+const MAX_PAGE_CACHE = 10;
+
+export function FlipBook({ totalPages, renderPage }: FlipBookProps) {
   const [currentPage, setCurrentPage] = useState(0);
   const [direction, setDirection] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [loadingPageNumber, setLoadingPageNumber] = useState<number | null>(null);
+  const [pageError, setPageError] = useState<string | null>(null);
+  const [pageCache, setPageCache] = useState<Map<number, PDFPageImage>>(() => new Map());
 
-  const totalPages = pages.length;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const pageCacheRef = useRef(pageCache);
+  const inFlightRef = useRef<Map<number, Promise<void>>>(new Map());
+
+  useEffect(() => {
+    pageCacheRef.current = pageCache;
+  }, [pageCache]);
+
+  const revokeAllCachedUrls = useCallback(() => {
+    for (const page of pageCacheRef.current.values()) {
+      URL.revokeObjectURL(page.imageUrl);
+    }
+    pageCacheRef.current.clear();
+    inFlightRef.current.clear();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      revokeAllCachedUrls();
+    };
+  }, [revokeAllCachedUrls]);
+
+  useEffect(() => {
+    setCurrentPage(0);
+    setDirection(0);
+    setPageError(null);
+    setLoadingPageNumber(null);
+    revokeAllCachedUrls();
+    setPageCache(new Map());
+  }, [totalPages, revokeAllCachedUrls]);
+
+  const pruneCache = useCallback((cache: Map<number, PDFPageImage>, focusPage: number) => {
+    if (cache.size <= MAX_PAGE_CACHE) return cache;
+
+    const closestPages = [...cache.keys()]
+      .sort((a, b) => Math.abs(a - focusPage) - Math.abs(b - focusPage))
+      .slice(0, MAX_PAGE_CACHE);
+
+    const keepSet = new Set(closestPages);
+    const next = new Map<number, PDFPageImage>();
+
+    for (const [pageNumber, pageData] of cache.entries()) {
+      if (keepSet.has(pageNumber)) {
+        next.set(pageNumber, pageData);
+      } else {
+        URL.revokeObjectURL(pageData.imageUrl);
+      }
+    }
+
+    return next;
+  }, []);
+
+  const ensurePageLoaded = useCallback(
+    async (pageNumber: number, priority: boolean) => {
+      if (pageNumber < 1 || pageNumber > totalPages) return;
+      if (pageCacheRef.current.has(pageNumber)) return;
+
+      const inflight = inFlightRef.current.get(pageNumber);
+      if (inflight) {
+        await inflight;
+        return;
+      }
+
+      const task = (async () => {
+        if (priority) {
+          setLoadingPageNumber(pageNumber);
+        }
+
+        try {
+          const rendered = await renderPage(pageNumber);
+
+          setPageCache((prev) => {
+            if (prev.has(pageNumber)) {
+              URL.revokeObjectURL(rendered.imageUrl);
+              return prev;
+            }
+            const next = new Map(prev);
+            next.set(pageNumber, rendered);
+            return pruneCache(next, pageNumber);
+          });
+
+          setPageError(null);
+        } catch (err) {
+          console.error(`Erro ao renderizar página ${pageNumber}:`, err);
+          if (priority) {
+            setPageError('Falha ao renderizar esta página. Tente novamente.');
+          }
+        } finally {
+          if (priority) {
+            setLoadingPageNumber((current) => (current === pageNumber ? null : current));
+          }
+        }
+      })();
+
+      inFlightRef.current.set(pageNumber, task);
+      await task.finally(() => {
+        inFlightRef.current.delete(pageNumber);
+      });
+    },
+    [pruneCache, renderPage, totalPages]
+  );
+
+  useEffect(() => {
+    if (totalPages <= 0) return;
+
+    const pageNumber = currentPage + 1;
+    void ensurePageLoaded(pageNumber, true);
+    void ensurePageLoaded(pageNumber - 1, false);
+    void ensurePageLoaded(pageNumber + 1, false);
+  }, [currentPage, ensurePageLoaded, totalPages]);
 
   const goToNext = () => {
     if (currentPage < totalPages - 1) {
@@ -63,7 +177,9 @@ export function FlipBook({ pages }: FlipBookProps) {
     }),
   };
 
-  const activePage = pages[currentPage];
+  const currentPageNumber = currentPage + 1;
+  const activePage = pageCache.get(currentPageNumber);
+  const isActivePageLoading = loadingPageNumber === currentPageNumber && !activePage;
 
   return (
     <div
@@ -71,7 +187,6 @@ export function FlipBook({ pages }: FlipBookProps) {
       className="fixed inset-0 flex items-center justify-center bg-neutral-950 overflow-hidden"
       style={{
         perspective: '1800px',
-        // Respeita safe areas do sistema (notch, barra de navegação)
         paddingTop: 'env(safe-area-inset-top)',
         paddingBottom: 'env(safe-area-inset-bottom)',
         paddingLeft: 'env(safe-area-inset-left)',
@@ -79,9 +194,9 @@ export function FlipBook({ pages }: FlipBookProps) {
       }}
     >
       <AnimatePresence mode="wait" custom={direction}>
-        {activePage && (
+        {activePage ? (
           <motion.div
-            key={currentPage}
+            key={currentPageNumber}
             custom={direction}
             variants={pageVariants}
             initial="enter"
@@ -105,7 +220,6 @@ export function FlipBook({ pages }: FlipBookProps) {
             onDragEnd={handleDragEnd}
             style={{
               transformStyle: 'preserve-3d',
-              // Ocupa todo espaço disponível mantendo proporção
               width: '100%',
               height: '100%',
               display: 'flex',
@@ -119,7 +233,6 @@ export function FlipBook({ pages }: FlipBookProps) {
               alt={`Página ${activePage.pageNumber}`}
               draggable={false}
               style={{
-                // Preenche ao máximo sem distorção, respeitando os dois eixos
                 maxWidth: '100%',
                 maxHeight: '100%',
                 width: 'auto',
@@ -129,7 +242,6 @@ export function FlipBook({ pages }: FlipBookProps) {
                 boxShadow: isDragging
                   ? '0 8px 60px rgba(0,0,0,0.7)'
                   : '0 4px 40px rgba(0,0,0,0.6)',
-                // Sutil borda de sombra nas laterais para profundidade
                 filter: isDragging
                   ? 'drop-shadow(0 20px 40px rgba(0,0,0,0.8))'
                   : 'drop-shadow(0 10px 30px rgba(0,0,0,0.5))',
@@ -138,10 +250,26 @@ export function FlipBook({ pages }: FlipBookProps) {
               }}
             />
           </motion.div>
+        ) : (
+          <motion.div
+            key={`loading-${currentPageNumber}`}
+            initial={{ opacity: 0.5 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="flex flex-col items-center gap-4 text-white/80"
+          >
+            <div className="w-10 h-10 border-2 border-neutral-700 border-t-teal-400 rounded-full animate-spin" />
+            <p className="text-sm">Carregando página {currentPageNumber}...</p>
+          </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Indicador de página — discreto, some depois de 4s no primeiro uso */}
+      {pageError && (
+        <div className="absolute top-20 left-4 right-4 px-4 py-3 bg-red-900/60 border border-red-700 rounded-xl text-red-200 text-sm text-center z-40">
+          {pageError}
+        </div>
+      )}
+
       <div
         className="absolute px-4 py-1.5 bg-black/40 backdrop-blur-sm rounded-full text-white/60 pointer-events-none"
         style={{
@@ -152,11 +280,10 @@ export function FlipBook({ pages }: FlipBookProps) {
           letterSpacing: '0.04em',
         }}
       >
-        {currentPage + 1} / {totalPages}
+        {Math.min(currentPageNumber, Math.max(totalPages, 1))} / {Math.max(totalPages, 1)}
       </div>
 
-      {/* Dica de swipe — aparece apenas na primeira página e some sozinha */}
-      {currentPage === 0 && (
+      {currentPage === 0 && totalPages > 1 && (
         <motion.div
           initial={{ opacity: 0.7 }}
           animate={{ opacity: 0 }}
@@ -168,7 +295,6 @@ export function FlipBook({ pages }: FlipBookProps) {
         </motion.div>
       )}
 
-      {/* Zonas de toque invisíveis nas bordas (complementam o swipe) */}
       {currentPage > 0 && (
         <button
           onClick={goToPrev}
@@ -182,6 +308,10 @@ export function FlipBook({ pages }: FlipBookProps) {
           className="absolute right-0 top-0 w-12 h-full opacity-0 z-10"
           aria-label="Próxima página"
         />
+      )}
+
+      {isActivePageLoading && (
+        <div className="absolute inset-0 pointer-events-none bg-black/10" />
       )}
     </div>
   );
