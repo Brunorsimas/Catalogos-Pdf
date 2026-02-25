@@ -26,6 +26,7 @@ export default function App() {
   const [showMenu, setShowMenu] = useState(false);
   const [installPromptEvent, setInstallPromptEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [installStatus, setInstallStatus] = useState<'idle' | 'installing' | 'installed'>('idle');
   const [showIOSInstallHint, setShowIOSInstallHint] = useState(false);
   const [showBrowserInstallHint, setShowBrowserInstallHint] = useState(false);
   const [isIOSDevice, setIsIOSDevice] = useState(false);
@@ -69,9 +70,15 @@ export default function App() {
       (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
 
     setIsInstalled(isStandalone);
+    if (isStandalone) {
+      setInstallStatus('installed');
+    } else {
+      setInstallStatus('idle');
+    }
 
     const handleAppInstalled = () => {
       setIsInstalled(true);
+      setInstallStatus('installed');
       setInstallPromptEvent(null);
       setShowIOSInstallHint(false);
       setShowBrowserInstallHint(false);
@@ -108,11 +115,20 @@ export default function App() {
 
     if (installPromptEvent) {
       try {
+        setInstallStatus('installing');
         await installPromptEvent.prompt();
         const choice = await installPromptEvent.userChoice;
         console.log('Resultado instalação PWA:', choice.outcome);
+        if (choice.outcome !== 'accepted') {
+          setInstallStatus('idle');
+        } else {
+          window.setTimeout(() => {
+            setInstallStatus((current) => (current === 'installing' ? 'idle' : current));
+          }, 15000);
+        }
       } catch (err) {
         console.log('Falha ao exibir prompt de instalação:', err);
+        setInstallStatus('idle');
       } finally {
         setInstallPromptEvent(null);
       }
@@ -122,12 +138,18 @@ export default function App() {
     if (isIOSDevice) {
       setShowIOSInstallHint(true);
       setShowBrowserInstallHint(false);
+      setInstallStatus('idle');
       return;
     }
+    setInstallStatus('idle');
     setShowBrowserInstallHint(true);
   }, [installPromptEvent, isIOSDevice, isInstalled]);
 
   const shouldShowInstallCTA = !isInstalled;
+  const installButtonLabel =
+    installStatus === 'installing' ? '⏳ Instalando...' : '⬇️ Instalar App';
+  const installMenuLabel =
+    installStatus === 'installing' ? 'Instalando...' : 'Instalar Aplicativo';
 
   const renderIOSInstallHint = () => (
     <AnimatePresence>
@@ -178,6 +200,22 @@ export default function App() {
               ✕
             </button>
           </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+
+  const renderInstallStatusHint = () => (
+    <AnimatePresence>
+      {installStatus === 'installing' && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 10 }}
+          className="fixed bottom-20 left-6 right-6 bg-teal-600/85 backdrop-blur border border-teal-400/40 text-white rounded-2xl px-4 py-3 text-sm z-40"
+          role="status"
+        >
+          Instalando aplicativo... aguarde a confirmação do navegador.
         </motion.div>
       )}
     </AnimatePresence>
@@ -311,15 +349,17 @@ export default function App() {
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2 }}
             onClick={handleInstallClick}
-            className="fixed right-4 px-4 py-2 bg-teal-500 hover:bg-teal-400 text-white rounded-full text-sm shadow-lg z-40"
+            disabled={installStatus === 'installing'}
+            className="fixed right-4 px-4 py-2 bg-teal-500 hover:bg-teal-400 disabled:opacity-80 disabled:cursor-not-allowed text-white rounded-full text-sm shadow-lg z-40"
             style={{ top: 'calc(env(safe-area-inset-top) + 12px)' }}
           >
-            ⬇️ Instalar App
+            {installButtonLabel}
           </motion.button>
         )}
 
         {renderIOSInstallHint()}
         {renderBrowserInstallHint()}
+        {renderInstallStatusHint()}
       </div>
     );
   }
@@ -405,15 +445,17 @@ export default function App() {
           exit={{ opacity: 0, y: -8 }}
           transition={{ duration: 0.2 }}
           onClick={handleInstallClick}
-          className="fixed right-4 px-4 py-2 bg-teal-500 hover:bg-teal-400 text-white rounded-full text-sm shadow-lg z-50"
+          disabled={installStatus === 'installing'}
+          className="fixed right-4 px-4 py-2 bg-teal-500 hover:bg-teal-400 disabled:opacity-80 disabled:cursor-not-allowed text-white rounded-full text-sm shadow-lg z-50"
           style={{ top: 'calc(env(safe-area-inset-top) + 12px)' }}
         >
-          ⬇️ Instalar App
+          {installButtonLabel}
         </motion.button>
       )}
 
       {renderIOSInstallHint()}
       {renderBrowserInstallHint()}
+      {renderInstallStatusHint()}
 
       {/* Menu discreto (longo toque no canto superior direito) */}
       <button
@@ -478,10 +520,11 @@ export default function App() {
                     await handleInstallClick();
                     setShowMenu(false);
                   }}
+                  disabled={installStatus === 'installing'}
                   className="w-full flex items-center gap-3 px-4 py-3 text-white hover:bg-neutral-800 transition-colors text-sm"
                 >
-                  <span>⬇️</span>
-                  Instalar Aplicativo
+                  <span>{installStatus === 'installing' ? '⏳' : '⬇️'}</span>
+                  {installMenuLabel}
                 </button>
               )}
 
