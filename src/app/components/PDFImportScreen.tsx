@@ -15,7 +15,13 @@ export function PDFImportScreen({ onImport }: PDFImportScreenProps) {
 
   const handleFile = useCallback(
     async (file: File) => {
-      if (!file || file.type !== 'application/pdf') {
+      const hasPdfMime =
+        file.type === 'application/pdf' ||
+        file.type === 'application/x-pdf' ||
+        file.type === '';
+      const hasPdfExtension = /\.pdf$/i.test(file.name);
+
+      if (!file || (!hasPdfMime && !hasPdfExtension)) {
         setError('Por favor, selecione um arquivo PDF válido.');
         return;
       }
@@ -61,6 +67,7 @@ export function PDFImportScreen({ onImport }: PDFImportScreenProps) {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.currentTarget.value = '';
     if (file) handleFile(file);
   };
 

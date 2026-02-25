@@ -23,10 +23,14 @@ export function usePDFPages(pdfUrl: string) {
 
   useEffect(() => {
     let isMounted = true;
+    let loadingTask: ReturnType<typeof pdfjsLib.getDocument> | null = null;
 
     const loadPDF = async () => {
       // Não carregar se URL estiver vazia
       if (!pdfUrl) {
+        setPages([]);
+        setError(null);
+        setTotalPages(0);
         setLoading(false);
         return;
       }
@@ -36,7 +40,7 @@ export function usePDFPages(pdfUrl: string) {
         setError(null);
 
         // Carregar o documento PDF
-        const loadingTask = pdfjsLib.getDocument(pdfUrl);
+        loadingTask = pdfjsLib.getDocument(pdfUrl);
         const pdf = await loadingTask.promise;
 
         if (!isMounted) return;
@@ -96,7 +100,7 @@ export function usePDFPages(pdfUrl: string) {
       } catch (err) {
         console.error('Erro ao carregar PDF:', err);
         if (isMounted) {
-          setError('Falha ao carregar o catálogo. Verifique se o arquivo turq.pdf está disponível.');
+          setError('Falha ao carregar o catálogo. Verifique se o PDF selecionado está válido.');
           setLoading(false);
         }
       }
@@ -106,6 +110,9 @@ export function usePDFPages(pdfUrl: string) {
 
     return () => {
       isMounted = false;
+      if (loadingTask) {
+        void loadingTask.destroy();
+      }
     };
   }, [pdfUrl]);
 
