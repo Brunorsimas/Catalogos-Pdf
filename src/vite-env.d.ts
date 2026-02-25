@@ -1,5 +1,10 @@
 /// <reference types="vite/client" />
 
+declare module '*.png' {
+  const src: string;
+  export default src;
+}
+
 declare module 'react-dom/client' {
   import type { ReactNode } from 'react';
 
