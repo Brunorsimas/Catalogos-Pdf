@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+﻿import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { FlipBook } from './components/FlipBook';
 import { PDFImportScreen } from './components/PDFImportScreen';
@@ -32,18 +32,31 @@ export default function App() {
 
   // ─── Verificar se há PDF salvo ao iniciar ───────────────────────────────────
   useEffect(() => {
+    const withTimeout = <T,>(promise: Promise<T>, fallback: T, timeoutMs = 1500): Promise<T> =>
+      Promise.race([
+        promise,
+        new Promise<T>((resolve) => {
+          window.setTimeout(() => resolve(fallback), timeoutMs);
+        }),
+      ]);
+
     const init = async () => {
-      const hasPDF = await hasSavedPDF();
-      if (hasPDF) {
-        const stored = await loadPDFFromStorage();
-        if (stored) {
-          setPdfUrl(stored.url);
-          setSavedPDFName(stored.name);
-          setAppState('loading');
-          return;
+      try {
+        const hasPDF = await withTimeout(hasSavedPDF(), false);
+        if (hasPDF) {
+          const stored = await withTimeout(loadPDFFromStorage(), null);
+          if (stored) {
+            setPdfUrl(stored.url);
+            setSavedPDFName(stored.name);
+            setAppState('loading');
+            return;
+          }
         }
+      } catch (err) {
+        console.log('Falha ao verificar PDF salvo:', err);
       }
-      // Nenhum PDF salvo → mostrar tela de importação
+
+      // Nenhum PDF salvo -> mostrar tela de importacao
       setAppState('import');
     };
     init();
@@ -275,7 +288,7 @@ export default function App() {
   // 1. Verificando storage
   if (appState === 'checking') {
     return (
-      <div className="size-full flex items-center justify-center bg-neutral-950">
+      <div className="fixed inset-0 flex items-center justify-center bg-neutral-950">
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
@@ -314,7 +327,7 @@ export default function App() {
   // 3. Carregando páginas do PDF
   if (appState === 'loading') {
     return (
-      <div className="size-full flex flex-col items-center justify-center bg-neutral-950 text-white">
+      <div className="fixed inset-0 flex flex-col items-center justify-center bg-neutral-950 text-white">
         <div className="flex flex-col items-center gap-6">
           <div className="relative w-20 h-20">
             <div className="absolute inset-0 border-4 border-neutral-800 rounded-full" />
@@ -342,7 +355,7 @@ export default function App() {
   // 4. Erro ao carregar
   if (appState === 'error') {
     return (
-      <div className="size-full flex flex-col items-center justify-center bg-neutral-950 text-white p-8">
+      <div className="fixed inset-0 flex flex-col items-center justify-center bg-neutral-950 text-white p-8">
         <div className="max-w-sm text-center">
           <div className="text-6xl mb-6">⚠️</div>
           <h1 className="text-2xl mb-3">Erro ao Carregar</h1>
@@ -514,3 +527,4 @@ export default function App() {
     </div>
   );
 }
+

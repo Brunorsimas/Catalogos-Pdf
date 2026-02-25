@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ipdfca-static-v4';
+const CACHE_NAME = 'ipdfca-static-v5';
 
 const SCOPE_PATHNAME = new URL(self.registration.scope).pathname.replace(/\/$/, '');
 const withScope = (path) => `${SCOPE_PATHNAME}${path.startsWith('/') ? '' : '/'}${path}`;
